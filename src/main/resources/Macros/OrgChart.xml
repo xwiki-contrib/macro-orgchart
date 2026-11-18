@@ -51,6 +51,7 @@ To configure the XWiki fields, visit the [[OrgChartSetup]] page.
 
 |= Parameter Name |= Description |= Possible values |= Default value
 | source | | list, json, xwiki | list if there is a content parameter, xwiki if not 
+| direction | | t2b, b2t, l2r, r2l | t2b
 | content field | wiki list or json to use as data source | see examples | empty
 | user | user to start the organizational chart in xwiki source mode| any user document (XWiki.ID)| If none provided the macro will look for the first user having no manager and being a manager of at least on person
 | managerfield | name of the field used to store the manager of a person| any users field in the XWiki.XWiki Users class| manager
@@ -422,16 +423,16 @@ XWiki can also find automatically a user that had reporters and no manager to st
 #*
  Macro to display an orgchart from xwiki users
 *#
-#macro(orgchart $user $managerColumn $titleColumn)
+#macro(orgchart $user $managerColumn $titleColumn $direction)
 #set($orgchartusers = $util.arrayList)
 #set($ok = $orgchartusers.add($user))
 #set($json = "#orgchartitem($user,$managerColumn,$titleColumn)")
-#orgchartjson($json)
+#orgchartjson($json $direction)
 #end
 #*
  Macro to display an orgchart from json
 *#
-#macro(orgchartjson $content)
+#macro(orgchartjson $content $direction)
 {{html clean=false}}
 &lt;div id="chart-container-${orgchartcounter}"&gt;&lt;/div&gt;
 &lt;script&gt;
@@ -441,7 +442,8 @@ require(["jquery", "$services.webjars.url('org.webjars.npm:orgchart', 'dist/js/j
    $('#chart-container-${orgchartcounter}').orgchart(
    {
         'data' : datasource,
-        'nodeContent': 'title'
+        'nodeContent': 'title',
+        'direction': ${direction}
       }
    );
 });
@@ -451,7 +453,7 @@ require(["jquery", "$services.webjars.url('org.webjars.npm:orgchart', 'dist/js/j
 #*
  Macro to display an orgchart from a list
 *#
-#macro(orgchartlist $content)
+#macro(orgchartlist $content $direction)
 (% id="orgchartdata${orgchartcounter}" style="display: none;" %)
 $content
 
@@ -459,7 +461,12 @@ $content
 &lt;div id="chart-container-${orgchartcounter}"&gt;&lt;/div&gt;
 &lt;script type="text/javascript"&gt;
 require(["jquery", "$services.webjars.url('org.webjars.npm:orgchart', 'dist/js/jquery.orgchart.min.js')"], function(jQuery) {
-   jQuery('#chart-container-${orgchartcounter}').orgchart({ 'data' : jQuery('#orgchartdata${orgchartcounter}') });
+   jQuery('#chart-container-${orgchartcounter}').orgchart(
+     {
+       'data' : jQuery('#orgchartdata${orgchartcounter}'),
+       'direction' : ${direction}
+     }
+   );
 });
 &lt;/script&gt;
 {{/html}}
@@ -474,20 +481,23 @@ require(["jquery", "$services.webjars.url('org.webjars.npm:orgchart', 'dist/js/j
  #set($orgchartcounter = $orgchartcounter + 1)
 #end 
 #set($ok = $xwiki.ssx.use("Macros.OrgChart"))
+#if($xcontext.macro.params.source.trim()=="")
+  #set($xcontext.macro.params.source = 't2b')
+#end
 #if($xcontext.macro.content &amp;&amp; $xcontext.macro.content.trim()!="")
  #if($xcontext.macro.params.source=="json")
-  #orgchartjson($xcontext.macro.content)
+  #orgchartjson($xcontext.macro.content,$xcontext.macro.params.direction)
  #else
-  #orgchartlist($xcontext.macro.content) 
+  #orgchartlist($xcontext.macro.content,$xcontext.macro.params.direction)
  #end
 #else
  #if($xcontext.macro.params.user&amp;&amp;$xcontext.macro.params.user!="")
-  #orgchart($xcontext.macro.params.user,$xcontext.macro.params.managerfield,$xcontext.macro.params.titlefield)
+  #orgchart($xcontext.macro.params.user,$xcontext.macro.params.managerfield,$xcontext.macro.params.titlefield,$xcontext.macro.params.direction)
  #else
   ## if no user is set then search for the first one that is both a manager and is not reporting to anybody
   #set($users = $xwiki.searchDocuments(",BaseObject as obj, LargeStringProperty as managerprop where doc.fullName=obj.name and obj.className='XWiki.XWikiUsers' and obj.id=managerprop.id.id and managerprop.id.name='${xcontext.macro.params.managerfield}' and (managerprop.value='' or managerprop.value is null) and doc.fullName in (select prop.value from BaseObject as obj2, LargeStringProperty as prop where obj2.className='XWiki.XWikiUsers' and obj2.id=prop.id.id and prop.id.name='${xcontext.macro.params.managerfield}')"))
   #if($users &amp;&amp; $users.size()&gt;0)
-   #orgchart($listtool.get($users,0),$xcontext.macro.params.managerfield,$xcontext.macro.params.titlefield) 
+   #orgchart($listtool.get($users,0),$xcontext.macro.params.managerfield,$xcontext.macro.params.titlefield,$xcontext.macro.params.direction)
   #end
  #end
 #end
@@ -588,6 +598,72 @@ require(["jquery", "$services.webjars.url('org.webjars.npm:orgchart', 'dist/js/j
     <name>Macros.OrgChart</name>
     <number>1</number>
     <className>XWiki.WikiMacroParameterClass</className>
+    <guid>7eb93b06-4193-414c-bfe1-1454c32c2dd7</guid>
+    <class>
+      <name>XWiki.WikiMacroParameterClass</name>
+      <customClass/>
+      <customMapping/>
+      <defaultViewSheet/>
+      <defaultEditSheet/>
+      <defaultWeb/>
+      <nameField/>
+      <validationScript/>
+      <defaultValue>
+        <disabled>0</disabled>
+        <name>defaultValue</name>
+        <number>4</number>
+        <prettyName>Parameter default value</prettyName>
+        <size>30</size>
+        <unmodifiable>0</unmodifiable>
+        <classType>com.xpn.xwiki.objects.classes.StringClass</classType>
+      </defaultValue>
+      <description>
+        <disabled>0</disabled>
+        <name>description</name>
+        <number>2</number>
+        <prettyName>Parameter description</prettyName>
+        <rows>5</rows>
+        <size>40</size>
+        <unmodifiable>0</unmodifiable>
+        <classType>com.xpn.xwiki.objects.classes.TextAreaClass</classType>
+      </description>
+      <mandatory>
+        <disabled>0</disabled>
+        <displayFormType>select</displayFormType>
+        <displayType>yesno</displayType>
+        <name>mandatory</name>
+        <number>3</number>
+        <prettyName>Parameter mandatory</prettyName>
+        <unmodifiable>0</unmodifiable>
+        <classType>com.xpn.xwiki.objects.classes.BooleanClass</classType>
+      </mandatory>
+      <name>
+        <disabled>0</disabled>
+        <name>name</name>
+        <number>1</number>
+        <prettyName>Parameter name</prettyName>
+        <size>30</size>
+        <unmodifiable>0</unmodifiable>
+        <classType>com.xpn.xwiki.objects.classes.StringClass</classType>
+      </name>
+    </class>
+    <property>
+      <defaultValue>t2b</defaultValue>
+    </property>
+    <property>
+      <description>Chart growth direction (t2b, b2t, l2r, r2l)</description>
+    </property>
+    <property>
+      <mandatory/>
+    </property>
+    <property>
+      <name>direction</name>
+    </property>
+  </object>
+  <object>
+    <name>Macros.OrgChart</name>
+    <number>2</number>
+    <className>XWiki.WikiMacroParameterClass</className>
     <guid>a4f97c23-07dc-4f0f-9dd0-6f6cfcc9f83a</guid>
     <class>
       <name>XWiki.WikiMacroParameterClass</name>
@@ -652,7 +728,7 @@ require(["jquery", "$services.webjars.url('org.webjars.npm:orgchart', 'dist/js/j
   </object>
   <object>
     <name>Macros.OrgChart</name>
-    <number>2</number>
+    <number>3</number>
     <className>XWiki.WikiMacroParameterClass</className>
     <guid>a0713394-8128-416f-bc9b-97bdb4fe4742</guid>
     <class>
@@ -718,7 +794,7 @@ require(["jquery", "$services.webjars.url('org.webjars.npm:orgchart', 'dist/js/j
   </object>
   <object>
     <name>Macros.OrgChart</name>
-    <number>3</number>
+    <number>4</number>
     <className>XWiki.WikiMacroParameterClass</className>
     <guid>47268ec8-ded4-493e-9f3d-a38a23524335</guid>
     <class>
